@@ -57,14 +57,15 @@ def is_admin(user_id):
 
 
 # ================= PROFIL SOATI =================
+# Bio yangilash o'chirilgan - bot token bilan ishlamaydi
+# Shaxsiy akkaunt session kerak
 async def clock_task():
     global clock_on
-    await client.start()
+    print("⚠️ Bio yangilash o'chirilgan - bot token bilan ishlamaydi")
     while True:
         if clock_on:
             text = f"⏰ {datetime.now().strftime('%H:%M')} | Online"
-            await client(UpdateProfileRequest(about=text))
-            print("Soat yangilandi:", text)
+            print("Soat:", text)
         await asyncio.sleep(UPDATE_INTERVAL)
 
 # ================= AUTO XABAR =================
