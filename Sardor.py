@@ -6,7 +6,7 @@ from datetime import datetime
 
 # ===== TELETHON =====
 from telethon import TelegramClient
-from telethon.tl.functions.account import UpdateProfile
+from telethon.tl.functions.account import UpdateProfileRequest
 
 # ===== TELEGRAM BOT =====
 from telegram import (
@@ -63,7 +63,7 @@ async def clock_task():
     while True:
         if clock_on:
             text = f"⏰ {datetime.now().strftime('%H:%M')} | Online"
-            await client(UpdateProfile(about=text))
+            await client(UpdateProfileRequest(about=text))
             print("Soat yangilandi:", text)
         await asyncio.sleep(UPDATE_INTERVAL)
 
