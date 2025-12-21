@@ -51,7 +51,10 @@ async def clock_task():
         if clock_on:
             tashkent = pytz.timezone('Asia/Tashkent')
             now = datetime.now(tashkent)
-            text = now.strftime('%H:%M')
+            # Qalin raqamlar (Unicode bold)
+            bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
+            time_str = now.strftime('%H:%M')
+            text = ''.join(bold_nums.get(c, c) for c in time_str)
             try:
                 await client(UpdateProfileRequest(first_name=text))
                 print(f"Nickname: {text}")
