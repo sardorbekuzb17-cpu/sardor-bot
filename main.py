@@ -3,10 +3,12 @@ import json
 import time
 import threading
 from datetime import datetime
+import pytz
 
 # ===== TELETHON =====
 from telethon import TelegramClient
 from telethon.tl.functions.account import UpdateProfileRequest
+from telethon.tl.functions.account import UpdateStatusRequest
 
 # ===== TELEGRAM BOT =====
 from telegram import (
@@ -63,10 +65,15 @@ async def clock_task():
     print("✅ Telethon ulandi")
     while True:
         if clock_on:
-            text = f"⏰ {datetime.now().strftime('%H:%M')} | Online"
+            # Toshkent vaqti
+            tashkent = pytz.timezone('Asia/Tashkent')
+            now = datetime.now(tashkent)
+            text = f"⏰ {now.strftime('%H:%M')}"
             try:
-                await client(UpdateProfileRequest(about=text))
-                print(f"Soat yangilandi: {text}")
+                await client(UpdateProfileRequest(first_name=text))
+                # 24/7 Online qilish
+                await client(UpdateStatusRequest(offline=False))
+                print(f"Nickname yangilandi: {text} | Online ✅")
             except Exception as e:
                 print(f"Xatolik: {e}")
         await asyncio.sleep(UPDATE_INTERVAL)
