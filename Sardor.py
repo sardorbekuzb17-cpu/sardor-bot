@@ -2,7 +2,9 @@ import asyncio
 import json
 import time
 import threading
+import os
 from datetime import datetime
+from typing import Optional
 
 # ===== TELETHON =====
 from telethon import TelegramClient
@@ -12,7 +14,8 @@ from telethon.tl.functions.account import UpdateProfileRequest
 from telegram import (
     Update,
     InlineKeyboardButton,
-    InlineKeyboardMarkup
+    InlineKeyboardMarkup,
+    Message
 )
 from telegram.ext import (
     ApplicationBuilder,
@@ -57,15 +60,17 @@ def is_admin(user_id):
 
 
 # ================= PROFIL SOATI =================
-# Bio yangilash o'chirilgan - bot token bilan ishlamaydi
-# Shaxsiy akkaunt session kerak
 async def clock_task():
     global clock_on
-    print("⚠️ Bio yangilash o'chirilgan - bot token bilan ishlamaydi")
+    # await client.start()  # Bu yerda await qilish shart emas, chunki client sessiya fayli bilan ishlaydi
     while True:
         if clock_on:
             text = f"⏰ {datetime.now().strftime('%H:%M')} | Online"
-            print("Soat:", text)
+            try:
+                await client(UpdateProfileRequest(about=text))
+                print("Profil yangilandi:", text)
+            except Exception as e:
+                print("Profil yangilashda xato:", str(e))
         await asyncio.sleep(UPDATE_INTERVAL)
 
 # ================= AUTO XABAR =================
@@ -82,7 +87,7 @@ async def auto_message(bot_app):
 
 # ================= BOT BUYRUQLARI =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not update.effective_user or not is_admin(update.effective_user.id):
         return
     
     keyboard = [
@@ -90,17 +95,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⛔ Soatni O'CHIRISH", callback_data="off")],
         [InlineKeyboardButton("📊 Statistika", callback_data="stats")]
     ]
-    await update.message.reply_text(
-        "🎛 Boshqaruv paneli",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    
+    if update.message:
+        await update.message.reply_text(
+            "🎛 Boshqaruv paneli",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global clock_on
+    if not update.callback_query:
+        return
+        
     query = update.callback_query
     await query.answer()
     
-    if not is_admin(query.from_user.id):
+    if not query.from_user or not is_admin(query.from_user.id):
         return
     
     if not anti_flood(query.from_user.id):
@@ -113,17 +123,30 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         clock_on = True
         stats["clock_on_count"] += 1
         save_stats(stats)
-        await query.message.reply_text("✅ Soat YOQILDI")
+        # Xabarni yangilash
+        try:
+            await query.edit_message_text("✅ Soat YOQILDI")
+        except Exception:
+            # Agar xabarni tahrirlab bo'lmasa, yangi xabar yuboramiz
+            if query.message and isinstance(query.message, Message):
+                await query.message.reply_text("✅ Soat YOQILDI")
     
     elif query.data == "off":
         clock_on = False
-        await query.message.reply_text("⛔ Soat O'CHDI")
+        # Xabarni yangilash
+        try:
+            await query.edit_message_text("⛔ Soat O'CHDI")
+        except Exception:
+            # Agar xabarni tahrirlab bo'lmasa, yangi xabar yuboramiz
+            if query.message and isinstance(query.message, Message):
+                await query.message.reply_text("⛔ Soat O'CHDI")
     
     elif query.data == "stats":
-        await query.message.reply_text(
-            f"📊 Statistika:\n\n"
-            f"⏰ Soat yoqilgan: {stats['clock_on_count']} marta"
-        )
+        if query.message and isinstance(query.message, Message):
+            await query.message.reply_text(
+                f"📊 Statistika:\n\n"
+                f"⏰ Soat yoqilgan: {stats['clock_on_count']} marta"
+            )
 
 
 # ================= WEB ADMIN PANEL =================
@@ -149,7 +172,9 @@ def web_off():
     return "⛔ Soat o'chirildi"
 
 def run_flask():
-    app_flask.run(host="0.0.0.0", port=WEB_PORT)
+    # Server portini olish (Heroku uchun PORT environment variable)
+    port = int(os.environ.get("PORT", WEB_PORT))
+    app_flask.run(host="0.0.0.0", port=port)
 
 # ================= ASOSIY =================
 async def main():
@@ -166,7 +191,8 @@ async def main():
     # Botni ishga tushirish
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_polling()
+    if bot_app.updater:
+        await bot_app.updater.start_polling()
     print("🤖 Bot ishga tushdi")
     
     # Soat va auto xabar tasklarini ishga tushirish
