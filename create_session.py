@@ -1,31 +1,25 @@
 from telethon.sync import TelegramClient
-from telethon.errors import SessionPasswordNeededError, FloodWaitError
+from telethon.errors import SessionPasswordNeededError
 from config import API_ID, API_HASH
 
-def get_phone():
-    return input("Telefon raqamingizni kiriting (+998XXYYYYYYY): ")
+print("Session yaratilmoqda...")
 
-print("=" * 50)
-print("TELEGRAM SESSION YARATISH")
-print("=" * 50)
-print(f"API_ID: {API_ID}")
-print(f"API_HASH: {API_HASH}")
-print("=" * 50)
+client = TelegramClient("user_session", API_ID, API_HASH)
+client.connect()
 
-try:
-    client = TelegramClient("user_session", API_ID, API_HASH)
-    print("1. Client yaratildi")
-    
-    # start() metodi avtomatik ravishda ulanish va autentifikatsiya qiladi
-    client.start(phone=get_phone)
-    print("2. Telegram serveriga ulandi va tizimga kirdingiz")
-    
-    print(">>> SESSION MUVAFFAQIYATLI YARATILDI! <<<")
-    
-    # client avtomatik ravishda yopiladi
-    print("✅ TAYYOR! Session fayli yaratildi")
+phone = "+998200009121"
 
-except FloodWaitError as e:
-    print(f"❌ Telegram blokladi! {e.seconds} sekund kutish kerak")
-except Exception as e:
-    print(f"❌ Xatolik: {type(e).__name__}: {e}")
+if not client.is_user_authorized():
+    client.send_code_request(phone)
+    print("Kod yuborildi! Telegram ilovasini tekshiring.")
+    
+    try:
+        code = input("Kodni kiriting: ")
+        client.sign_in(phone, code)
+    except SessionPasswordNeededError:
+        password = input("2FA parolni kiriting: ")
+        client.sign_in(password=password)
+
+me = client.get_me()
+print(f"✅ Tayyor! Akkaunt: {me.first_name}")
+client.disconnect()

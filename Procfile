@@ -1,1 +1,1 @@
-worker: python Sardor.py
+worker: python main.py
