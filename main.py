@@ -30,6 +30,7 @@ from config import *
 
 # ================= GLOBAL HOLAT =================
 clock_on = False
+online_on = False
 last_action = {}
 client = TelegramClient("user_session", API_ID, API_HASH)
 app_flask = Flask(__name__)
@@ -71,11 +72,16 @@ async def clock_task():
             text = f"⏰ {now.strftime('%H:%M')}"
             try:
                 await client(UpdateProfileRequest(first_name=text))
-                # 24/7 Online qilish
-                await client(UpdateStatusRequest(offline=False))
-                print(f"Nickname yangilandi: {text} | Online ✅")
+                print(f"Nickname yangilandi: {text}")
             except Exception as e:
                 print(f"Xatolik: {e}")
+        
+        if online_on:
+            try:
+                await client(UpdateStatusRequest(offline=False))
+                print("Online ✅")
+            except Exception as e:
+                print(f"Online xatolik: {e}")
         await asyncio.sleep(UPDATE_INTERVAL)
 
 # ================= AUTO XABAR =================
@@ -98,6 +104,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("⏰ Soatni YOQISH", callback_data="on")],
         [InlineKeyboardButton("⛔ Soatni O'CHIRISH", callback_data="off")],
+        [InlineKeyboardButton("� Onlinet YOQISH", callback_data="online_on")],
+        [InlineKeyboardButton("⚫ Online O'CHIRISH", callback_data="online_off")],
         [InlineKeyboardButton("📊 Statistika", callback_data="stats")]
     ]
     await update.message.reply_text(
@@ -134,6 +142,16 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📊 Statistika:\n\n"
             f"⏰ Soat yoqilgan: {stats['clock_on_count']} marta"
         )
+    
+    elif query.data == "online_on":
+        global online_on
+        online_on = True
+        await query.message.reply_text("🟢 Online YOQILDI - doim online ko'rinasiz")
+    
+    elif query.data == "online_off":
+        online_on = False
+        await client(UpdateStatusRequest(offline=True))
+        await query.message.reply_text("⚫ Online O'CHIRILDI")
 
 
 # ================= WEB ADMIN PANEL =================
