@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import asyncio
 import json
 import time
@@ -47,7 +48,6 @@ def save_stats(data):
     with open("stats.json", "w") as f:
         json.dump(data, f)
 
-
 # ================= ANTI-FLOOD =================
 def anti_flood(user_id, delay=3):
     now = time.time()
@@ -59,59 +59,79 @@ def anti_flood(user_id, delay=3):
 def is_admin(user_id):
     return user_id == ADMIN_ID
 
+
 # ================= PROFIL SOATI =================
 async def clock_task():
     global clock_on, online_on
     await client.start()
-    print("Telethon ulandi")
+    print("[OK] Telethon ulandi")
     while True:
         if clock_on:
             tashkent = pytz.timezone('Asia/Tashkent')
             now = datetime.now(tashkent)
-            text = f"{now.strftime('%H:%M')}"
+            text = now.strftime('%H:%M')
             try:
                 await client(UpdateProfileRequest(first_name=text))
-                print(f"Nickname yangilandi: {text}")
+                print(f"[CLOCK] Nickname: {text}")
             except Exception as e:
-                print(f"Xatolik: {e}")
+                print(f"[ERROR] {e}")
         
         if online_on:
             try:
                 await client(UpdateStatusRequest(offline=False))
-                print("Online")
+                print("[ONLINE] Active")
             except Exception as e:
-                print(f"Online xatolik: {e}")
+                print(f"[ERROR] {e}")
         await asyncio.sleep(UPDATE_INTERVAL)
 
 # ================= AUTO XABAR =================
 async def auto_message(bot_app):
     while True:
         try:
+            tashkent = pytz.timezone('Asia/Tashkent')
+            now = datetime.now(tashkent)
             await bot_app.bot.send_message(
                 chat_id=ADMIN_ID,
-                text="Bot 24/7 ishlayapti"
+                text=f"[BOT STATUS]\n\nVaqt: {now.strftime('%H:%M')}\nSoat: {'ON' if clock_on else 'OFF'}\nOnline: {'ON' if online_on else 'OFF'}"
             )
         except Exception as e:
-            print(f"Auto xabar xatosi: {e}")
+            print(f"[ERROR] Auto xabar: {e}")
         await asyncio.sleep(AUTO_MESSAGE_INTERVAL)
 
 
 # ================= BOT BUYRUQLARI =================
 def get_keyboard():
+    clock_status = "ON" if clock_on else "OFF"
+    online_status = "ON" if online_on else "OFF"
     return [
-        [InlineKeyboardButton("Soatni YOQISH", callback_data="on"),
-         InlineKeyboardButton("Soatni OCHIRISH", callback_data="off")],
-        [InlineKeyboardButton("Online YOQISH", callback_data="online_on"),
-         InlineKeyboardButton("Online OCHIRISH", callback_data="online_off")],
-        [InlineKeyboardButton("Statistika", callback_data="stats")]
+        [InlineKeyboardButton(f"\u23f0 SOAT [{clock_status}]", callback_data="toggle_clock")],
+        [InlineKeyboardButton(f"\U0001f7e2 ONLINE [{online_status}]", callback_data="toggle_online")],
+        [InlineKeyboardButton("\U0001f4ca STATISTIKA", callback_data="stats")],
+        [InlineKeyboardButton("\U0001f504 YANGILASH", callback_data="refresh")]
     ]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
+        await update.message.reply_text("Sizga ruxsat yo'q!")
         return
     
+    tashkent = pytz.timezone('Asia/Tashkent')
+    now = datetime.now(tashkent)
+    
+    text = f"""
+\U0001f3ae BOSHQARUV PANELI
+
+\u23f0 Vaqt: {now.strftime('%H:%M:%S')}
+\U0001f4c5 Sana: {now.strftime('%d.%m.%Y')}
+
+\U0001f551 Soat: {'YOQILGAN \u2705' if clock_on else 'OCHIRILGAN \u274c'}
+\U0001f7e2 Online: {'YOQILGAN \u2705' if online_on else 'OCHIRILGAN \u274c'}
+
+\U0001f447 Tugmalardan foydalaning:
+"""
+    
     await update.message.reply_text(
-        "Boshqaruv paneli",
+        text,
         reply_markup=InlineKeyboardMarkup(get_keyboard())
     )
 
@@ -121,6 +141,7 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not is_admin(query.from_user.id):
+        await query.answer("Ruxsat yo'q!", show_alert=True)
         return
     
     if not anti_flood(query.from_user.id):
@@ -128,34 +149,48 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     stats = load_stats()
+    tashkent = pytz.timezone('Asia/Tashkent')
+    now = datetime.now(tashkent)
     
-    if query.data == "on":
-        clock_on = True
-        stats["clock_on_count"] += 1
-        save_stats(stats)
-        await query.message.reply_text("Soat YOQILDI")
-    
-    elif query.data == "off":
-        clock_on = False
-        await query.message.reply_text("Soat OCHDI")
-    
-    elif query.data == "stats":
-        await query.message.reply_text(
-            f"Statistika:\n\nSoat yoqilgan: {stats['clock_on_count']} marta"
+    if query.data == "toggle_clock":
+        clock_on = not clock_on
+        if clock_on:
+            stats["clock_on_count"] += 1
+            save_stats(stats)
+        status = "YOQILDI \u2705" if clock_on else "OCHIRILDI \u274c"
+        await query.message.edit_text(
+            f"\u23f0 SOAT {status}\n\n\U0001f552 Vaqt: {now.strftime('%H:%M:%S')}",
+            reply_markup=InlineKeyboardMarkup(get_keyboard())
         )
     
-    elif query.data == "online_on":
-        online_on = True
-        await query.message.reply_text("Online YOQILDI - doim online korinasiz")
+    elif query.data == "toggle_online":
+        online_on = not online_on
+        if not online_on:
+            await client(UpdateStatusRequest(offline=True))
+        status = "YOQILDI \u2705" if online_on else "OCHIRILDI \u274c"
+        await query.message.edit_text(
+            f"\U0001f7e2 ONLINE {status}\n\n\U0001f552 Vaqt: {now.strftime('%H:%M:%S')}",
+            reply_markup=InlineKeyboardMarkup(get_keyboard())
+        )
     
-    elif query.data == "online_off":
-        online_on = False
-        await client(UpdateStatusRequest(offline=True))
-        await query.message.reply_text("Online OCHIRILDI")
+    elif query.data == "stats":
+        await query.message.edit_text(
+            f"\U0001f4ca STATISTIKA\n\n\u23f0 Soat yoqilgan: {stats['clock_on_count']} marta\n\U0001f552 Vaqt: {now.strftime('%H:%M:%S')}",
+            reply_markup=InlineKeyboardMarkup(get_keyboard())
+        )
     
-    elif query.data == "start":
-        await query.message.reply_text(
-            "Boshqaruv paneli",
+    elif query.data == "refresh":
+        text = f"""
+\U0001f3ae BOSHQARUV PANELI
+
+\u23f0 Vaqt: {now.strftime('%H:%M:%S')}
+\U0001f4c5 Sana: {now.strftime('%d.%m.%Y')}
+
+\U0001f551 Soat: {'YOQILGAN \u2705' if clock_on else 'OCHIRILGAN \u274c'}
+\U0001f7e2 Online: {'YOQILGAN \u2705' if online_on else 'OCHIRILGAN \u274c'}
+"""
+        await query.message.edit_text(
+            text,
             reply_markup=InlineKeyboardMarkup(get_keyboard())
         )
 
@@ -163,24 +198,61 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= WEB ADMIN PANEL =================
 @app_flask.route("/")
 def web_home():
+    tashkent = pytz.timezone('Asia/Tashkent')
+    now = datetime.now(tashkent)
     return f"""
-    <h2>Telegram Clock Panel</h2>
-    <p>Holat: {"YOQILGAN" if clock_on else "OCHIQ"}</p>
-    <a href="/on">YOQISH</a> | 
-    <a href="/off">OCHIRISH</a>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Telegram Bot Panel</title>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial; background: #1a1a2e; color: #fff; text-align: center; padding: 50px; }}
+            .status {{ font-size: 24px; margin: 20px; }}
+            .on {{ color: #00ff00; }}
+            .off {{ color: #ff0000; }}
+            a {{ display: inline-block; margin: 10px; padding: 15px 30px; background: #4a4a6a; color: #fff; text-decoration: none; border-radius: 5px; }}
+            a:hover {{ background: #6a6a8a; }}
+        </style>
+    </head>
+    <body>
+        <h1>TELEGRAM BOT PANEL</h1>
+        <p>Vaqt: {now.strftime('%H:%M:%S')}</p>
+        <div class="status">Soat: <span class="{'on' if clock_on else 'off'}">{'ON' if clock_on else 'OFF'}</span></div>
+        <div class="status">Online: <span class="{'on' if online_on else 'off'}">{'ON' if online_on else 'OFF'}</span></div>
+        <br>
+        <a href="/clock/on">SOAT ON</a>
+        <a href="/clock/off">SOAT OFF</a>
+        <br>
+        <a href="/online/on">ONLINE ON</a>
+        <a href="/online/off">ONLINE OFF</a>
+    </body>
+    </html>
     """
 
-@app_flask.route("/on")
-def web_on():
+@app_flask.route("/clock/on")
+def clock_on_route():
     global clock_on
     clock_on = True
-    return "Soat yoqildi"
+    return "<script>location.href='/'</script>"
 
-@app_flask.route("/off")
-def web_off():
+@app_flask.route("/clock/off")
+def clock_off_route():
     global clock_on
     clock_on = False
-    return "Soat ochirildi"
+    return "<script>location.href='/'</script>"
+
+@app_flask.route("/online/on")
+def online_on_route():
+    global online_on
+    online_on = True
+    return "<script>location.href='/'</script>"
+
+@app_flask.route("/online/off")
+def online_off_route():
+    global online_on
+    online_on = False
+    return "<script>location.href='/'</script>"
 
 def run_flask():
     app_flask.run(host="0.0.0.0", port=WEB_PORT)
@@ -193,19 +265,19 @@ async def main():
     
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    print("Web panel ishga tushdi")
+    print("[OK] Web panel ishga tushdi")
     
     await bot_app.initialize()
     await bot_app.start()
     await bot_app.updater.start_polling()
-    print("Bot ishga tushdi")
+    print("[OK] Bot ishga tushdi")
     
     asyncio.create_task(clock_task())
     asyncio.create_task(auto_message(bot_app))
-    print("Soat taski ishga tushdi")
+    print("[OK] Tasklar ishga tushdi")
     
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    print("Bot ishga tushmoqda...")
+    print("[START] Bot ishga tushmoqda...")
     asyncio.run(main())
