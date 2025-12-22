@@ -53,7 +53,7 @@ async def clock_task():
             now = datetime.now(tashkent)
             # Qalin raqamlar (Unicode bold)
             bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
-            time_str = now.strftime('%H:%M:%S')
+            time_str = now.strftime('%H:%M')
             text = ''.join(bold_nums.get(c, c) for c in time_str)
             try:
                 await client(UpdateProfileRequest(first_name=text))
