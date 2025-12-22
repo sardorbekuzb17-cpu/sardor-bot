@@ -44,29 +44,8 @@ def is_admin(user_id):
     return user_id == ADMIN_ID
 
 async def clock_task():
-    global clock_on, online_on
-    await client.start()
-    print("Telethon ulandi")
-    while True:
-        if clock_on:
-            tashkent = pytz.timezone('Asia/Tashkent')
-            now = datetime.now(tashkent)
-            # Qalin raqamlar (Unicode bold)
-            bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
-            time_str = now.strftime('%H:%M')
-            text = ''.join(bold_nums.get(c, c) for c in time_str)
-            try:
-                await client(UpdateProfileRequest(first_name=text))
-                print(f"Nickname: {text}")
-            except Exception as e:
-                print(f"Xatolik: {e}")
-        
-        if online_on:
-            try:
-                await client(UpdateStatusRequest(offline=False))
-            except Exception as e:
-                print(f"Online xatolik: {e}")
-        await asyncio.sleep(UPDATE_INTERVAL)
+    # Bu funksiya endi ishlatilmaydi
+    pass
 
 async def auto_message(bot_app):
     while True:
@@ -232,6 +211,10 @@ def run_flask():
     app_flask.run(host="0.0.0.0", port=WEB_PORT)
 
 async def main():
+    # Avval Telethon ulansin
+    await client.start()
+    print("Telethon ulandi")
+    
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(CallbackQueryHandler(buttons))
@@ -241,12 +224,35 @@ async def main():
     
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_polling()
+    await bot_app.updater.start_polling(drop_pending_updates=True)
+    print("Bot polling boshlandi")
     
-    asyncio.create_task(clock_task())
+    asyncio.create_task(clock_loop())
     asyncio.create_task(auto_message(bot_app))
     
     await asyncio.Event().wait()
+
+async def clock_loop():
+    global clock_on, online_on
+    while True:
+        if clock_on:
+            tashkent = pytz.timezone('Asia/Tashkent')
+            now = datetime.now(tashkent)
+            bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
+            time_str = now.strftime('%H:%M')
+            text = ''.join(bold_nums.get(c, c) for c in time_str)
+            try:
+                await client(UpdateProfileRequest(first_name=text))
+                print(f"Nickname: {text}")
+            except Exception as e:
+                print(f"Xatolik: {e}")
+        
+        if online_on:
+            try:
+                await client(UpdateStatusRequest(offline=False))
+            except Exception as e:
+                print(f"Online xatolik: {e}")
+        await asyncio.sleep(UPDATE_INTERVAL)
 
 if __name__ == "__main__":
     asyncio.run(main())
