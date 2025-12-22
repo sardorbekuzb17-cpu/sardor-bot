@@ -29,5 +29,10 @@ if not client.is_user_authorized():
 
 me = client.get_me()
 print(f"✅ Tayyor! Akkaunt: {me.first_name} (ID: {me.id})")
+
+# MUHIM: Log out qilmasdan faqat disconnect
 client.disconnect()
 print("Session fayli yaratildi: user_session.session")
+print("")
+print("DIQQAT: Endi lokal kompyuterda botni ISHGA TUSHIRMANG!")
+print("Faqat serverga deploy qiling.")
