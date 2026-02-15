@@ -18,6 +18,7 @@ from config import *
 
 clock_on = True
 online_on = True
+time_offset = 30  # Vaqtga qo'shiladigan sekund
 last_action = {}
 client = TelegramClient("user_session", API_ID, API_HASH)
 app_flask = Flask(__name__)
@@ -43,9 +44,20 @@ def anti_flood(user_id, delay=3):
 def is_admin(user_id):
     return user_id == ADMIN_ID
 
-async def clock_task():
-    # Bu funksiya endi ishlatilmaydi
-    pass
+async def keepalive_task():
+    """Telethon connectionni doimiy saqlash"""
+    while True:
+        try:
+            if client.is_connected():
+                # Har 5 minutda ping yubor
+                await client.get_me()
+                print("Keepalive: Connection active")
+            else:
+                print("Keepalive: Reconnecting...")
+                await client.connect()
+        except Exception as e:
+            print(f"Keepalive xatolik: {e}")
+        await asyncio.sleep(300)  # 5 minut
 
 async def auto_message(bot_app):
     while True:
@@ -59,9 +71,12 @@ async def auto_message(bot_app):
             clock_status = f"ON {check}" if clock_on else f"OFF {cross}"
             online_status = f"ON {check}" if online_on else f"OFF {cross}"
             msg = f"BOT STATUS\n\nVaqt: {now.strftime('%H:%M')}\n{clock_emoji} Soat: {clock_status}\n{green_emoji} Online: {online_status}"
-            await bot_app.bot.send_message(chat_id=ADMIN_ID, text=msg)
+            try:
+                await bot_app.bot.send_message(chat_id=ADMIN_ID, text=msg)
+            except Exception as e:
+                print(f"Auto xabar xatosi: {e}")
         except Exception as e:
-            print(f"Auto xabar xatosi: {e}")
+            print(f"Auto message loop xatolik: {e}")
         await asyncio.sleep(AUTO_MESSAGE_INTERVAL)
 
 
@@ -70,11 +85,18 @@ def get_keyboard():
     green_emoji = chr(0x1F7E2)
     stats_emoji = chr(0x1F4CA)
     refresh_emoji = chr(0x1F504)
+    plus_emoji = chr(0x2795)
+    minus_emoji = chr(0x2796)
     clock_status = "ON" if clock_on else "OFF"
     online_status = "ON" if online_on else "OFF"
     return [
         [InlineKeyboardButton(f"{clock_emoji} SOAT [{clock_status}]", callback_data="toggle_clock")],
         [InlineKeyboardButton(f"{green_emoji} ONLINE [{online_status}]", callback_data="toggle_online")],
+        [
+            InlineKeyboardButton(f"{minus_emoji} 5s", callback_data="offset_minus"),
+            InlineKeyboardButton(f"{clock_emoji} {time_offset}s", callback_data="show_offset"),
+            InlineKeyboardButton(f"{plus_emoji} 5s", callback_data="offset_plus")
+        ],
         [InlineKeyboardButton(f"{stats_emoji} STATISTIKA", callback_data="stats")],
         [InlineKeyboardButton(f"{refresh_emoji} YANGILASH", callback_data="refresh")]
     ]
@@ -111,7 +133,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(get_keyboard()))
 
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global clock_on, online_on
+    global clock_on, online_on, time_offset
     query = update.callback_query
     await query.answer()
     
@@ -147,6 +169,39 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await client(UpdateStatusRequest(offline=True))
         status = f"YOQILDI {check}" if online_on else f"OCHIRILDI {cross}"
         await query.message.edit_text(f"{green_emoji} ONLINE {status}\n\nVaqt: {now.strftime('%H:%M:%S')}", reply_markup=InlineKeyboardMarkup(get_keyboard()))
+    
+    elif query.data == "offset_plus":
+        time_offset += 5
+        # Darhol nickname yangilash
+        from datetime import timedelta
+        tashkent_tz = pytz.timezone('Asia/Tashkent')
+        new_time = datetime.now(tashkent_tz) + timedelta(seconds=time_offset)
+        bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
+        time_str = new_time.strftime('%H:%M')
+        text_name = ''.join(bold_nums.get(c, c) for c in time_str)
+        try:
+            await client(UpdateProfileRequest(first_name=text_name))
+        except:
+            pass
+        await query.message.edit_text(f"{clock_emoji} Vaqt sozlamasi: {time_offset} sekund\n\nVaqt: {now.strftime('%H:%M:%S')}", reply_markup=InlineKeyboardMarkup(get_keyboard()))
+    
+    elif query.data == "offset_minus":
+        time_offset -= 5
+        # Darhol nickname yangilash
+        from datetime import timedelta
+        tashkent_tz = pytz.timezone('Asia/Tashkent')
+        new_time = datetime.now(tashkent_tz) + timedelta(seconds=time_offset)
+        bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
+        time_str = new_time.strftime('%H:%M')
+        text_name = ''.join(bold_nums.get(c, c) for c in time_str)
+        try:
+            await client(UpdateProfileRequest(first_name=text_name))
+        except:
+            pass
+        await query.message.edit_text(f"{clock_emoji} Vaqt sozlamasi: {time_offset} sekund\n\nVaqt: {now.strftime('%H:%M:%S')}", reply_markup=InlineKeyboardMarkup(get_keyboard()))
+    
+    elif query.data == "show_offset":
+        await query.answer(f"Hozirgi offset: {time_offset} sekund", show_alert=True)
     
     elif query.data == "stats":
         await query.message.edit_text(f"{stats_emoji} STATISTIKA\n\nSoat yoqilgan: {stats['clock_on_count']} marta\nVaqt: {now.strftime('%H:%M:%S')}", reply_markup=InlineKeyboardMarkup(get_keyboard()))
@@ -208,12 +263,18 @@ def online_off_route():
     return "<script>location.href='/'</script>"
 
 def run_flask():
-    app_flask.run(host="0.0.0.0", port=WEB_PORT)
+    import os
+    port = int(os.environ.get("PORT", WEB_PORT))
+    app_flask.run(host="0.0.0.0", port=port)
 
 async def main():
     # Avval Telethon ulansin
-    await client.start()
-    print("Telethon ulandi")
+    try:
+        await client.start()
+        print("Telethon ulandi")
+    except Exception as e:
+        print(f"Telethon ulanish xatosi: {e}")
+        return
     
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
     bot_app.add_handler(CommandHandler("start", start))
@@ -222,36 +283,54 @@ async def main():
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    await bot_app.initialize()
-    await bot_app.start()
-    await bot_app.updater.start_polling(drop_pending_updates=True)
-    print("Bot polling boshlandi")
+    try:
+        await bot_app.initialize()
+        await bot_app.start()
+        await bot_app.updater.start_polling(drop_pending_updates=True)
+        print("Bot polling boshlandi")
+    except Exception as e:
+        print(f"Bot ulanish xatosi: {e}")
     
     asyncio.create_task(clock_loop())
     asyncio.create_task(auto_message(bot_app))
+    asyncio.create_task(keepalive_task())
     
     await asyncio.Event().wait()
 
 async def clock_loop():
     global clock_on, online_on
     while True:
-        if clock_on:
-            tashkent = pytz.timezone('Asia/Tashkent')
-            now = datetime.now(tashkent)
-            bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
-            time_str = now.strftime('%H:%M')
-            text = ''.join(bold_nums.get(c, c) for c in time_str)
-            try:
-                await client(UpdateProfileRequest(first_name=text))
-                print(f"Nickname: {text}")
-            except Exception as e:
-                print(f"Xatolik: {e}")
+        try:
+            if clock_on:
+                tashkent = pytz.timezone('Asia/Tashkent')
+                from datetime import timedelta
+                now = datetime.now(tashkent) + timedelta(seconds=time_offset)
+                bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
+                time_str = now.strftime('%H:%M')
+                text = ''.join(bold_nums.get(c, c) for c in time_str)
+                try:
+                    if client.is_connected():
+                        await client(UpdateProfileRequest(first_name=text))
+                        print(f"Nickname: {text}")
+                    else:
+                        print("Telethon ulanmagan, qayta ulanmoqda...")
+                        await client.connect()
+                except Exception as e:
+                    print(f"Xatolik: {e}")
+            
+            if online_on:
+                try:
+                    if client.is_connected():
+                        await client(UpdateStatusRequest(offline=False))
+                    else:
+                        await client.connect()
+                except Exception as e:
+                    print(f"Online xatolik: {e}")
+        except Exception as e:
+            print(f"Clock loop xatolik: {e}")
+            await asyncio.sleep(5)
+            continue
         
-        if online_on:
-            try:
-                await client(UpdateStatusRequest(offline=False))
-            except Exception as e:
-                print(f"Online xatolik: {e}")
         await asyncio.sleep(UPDATE_INTERVAL)
 
 if __name__ == "__main__":
