@@ -1,5 +1,8 @@
 __pycache__/
 *.pyc
 *.pyo
+*.session
+*.session-journal
 .env
 stats.json
+user_session.session*

@@ -268,15 +268,32 @@ def run_flask():
     app_flask.run(host="0.0.0.0", port=port)
 
 async def main():
+    import os
+    
     # Avval Telethon ulansin
     try:
-        await client.start()
-        print("Telethon ulandi")
+        # Agar session fayli bo'lmasa yoki environment variable bo'lsa, yangi session yarat
+        phone = os.environ.get("PHONE_NUMBER")
+        if phone and not os.path.exists("user_session.session"):
+            print(f"Yangi session yaratilmoqda: {phone}")
+            await client.start(phone=phone)
+            print("Yangi session yaratildi!")
+        else:
+            await client.start()
+            print("Telethon ulandi")
     except Exception as e:
         print(f"Telethon ulanish xatosi: {e}")
         # Session xatosi bo'lsa, davom etamiz
         if "authorization key" in str(e).lower():
-            print("Session yaratish kerak. Lokal mashinada ishga tushiring.")
+            print("Session bloklangan. Yangi session yaratish kerak.")
+            # Eski session faylini o'chirish
+            import os
+            try:
+                os.remove("user_session.session")
+                os.remove("user_session.session-journal")
+            except:
+                pass
+            print("Eski session o'chirildi. Qayta ishga tushiring.")
             return
     
     # Flask thread
