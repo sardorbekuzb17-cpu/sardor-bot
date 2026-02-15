@@ -316,7 +316,19 @@ async def clock_loop():
                         print("Telethon ulanmagan, qayta ulanmoqda...")
                         await client.connect()
                 except Exception as e:
-                    print(f"Xatolik: {e}")
+                    error_msg = str(e)
+                    if "wait" in error_msg.lower():
+                        # Flood limit - kutish kerak
+                        import re
+                        wait_time = re.search(r'(\d+) seconds', error_msg)
+                        if wait_time:
+                            wait_seconds = int(wait_time.group(1))
+                            print(f"Flood limit: {wait_seconds} sekund kutish kerak")
+                            await asyncio.sleep(wait_seconds)
+                    elif "authorization key" in error_msg.lower():
+                        print("Session xatosi: Ikki joyda ishlatilmoqda!")
+                    else:
+                        print(f"Xatolik: {e}")
             
             if online_on:
                 try:
@@ -325,7 +337,8 @@ async def clock_loop():
                     else:
                         await client.connect()
                 except Exception as e:
-                    print(f"Online xatolik: {e}")
+                    if "authorization key" not in str(e).lower():
+                        print(f"Online xatolik: {e}")
         except Exception as e:
             print(f"Clock loop xatolik: {e}")
             await asyncio.sleep(5)

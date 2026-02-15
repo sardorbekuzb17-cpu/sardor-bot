@@ -9,7 +9,7 @@ BOT_TOKEN = "8027836128:AAE2Kygaj--gj5xXA6YQKcIPWkalxuhBke4"
 ADMIN_ID = 6466528403
 
 # ===== SOZLAMALAR =====
-UPDATE_INTERVAL = 1  # 1 sekunda
+UPDATE_INTERVAL = 60  # 60 sekunda (1 minut)
 AUTO_MESSAGE_INTERVAL = 21600
 WEB_PORT = 8080
 TIME_OFFSET_SECONDS = 30  # Vaqtga qo'shiladigan sekund (0-60)
