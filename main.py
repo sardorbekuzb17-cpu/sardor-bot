@@ -274,27 +274,20 @@ async def main():
         print("Telethon ulandi")
     except Exception as e:
         print(f"Telethon ulanish xatosi: {e}")
-        return
+        # Session xatosi bo'lsa, davom etamiz
+        if "authorization key" in str(e).lower():
+            print("Session yaratish kerak. Lokal mashinada ishga tushiring.")
+            return
     
-    bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
-    bot_app.add_handler(CommandHandler("start", start))
-    bot_app.add_handler(CallbackQueryHandler(buttons))
-    
+    # Flask thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    try:
-        await bot_app.initialize()
-        await bot_app.start()
-        await bot_app.updater.start_polling(drop_pending_updates=True)
-        print("Bot polling boshlandi")
-    except Exception as e:
-        print(f"Bot ulanish xatosi: {e}")
-    
+    # Faqat clock va keepalive
     asyncio.create_task(clock_loop())
-    asyncio.create_task(auto_message(bot_app))
     asyncio.create_task(keepalive_task())
     
+    print("Bot ishga tushdi (faqat soat)")
     await asyncio.Event().wait()
 
 async def clock_loop():
