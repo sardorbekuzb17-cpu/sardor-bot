@@ -311,8 +311,19 @@ async def main():
 
 async def clock_loop():
     global clock_on, online_on
+    flood_wait_until = 0  # Flood limit tugash vaqti
+    
     while True:
         try:
+            # Flood limit tekshirish
+            import time as time_module
+            if flood_wait_until > 0 and time_module.time() < flood_wait_until:
+                wait_time = int(flood_wait_until - time_module.time())
+                if wait_time > 0:
+                    print(f"Flood limit: {wait_time} sekund kutish kerak")
+                    await asyncio.sleep(min(wait_time, 60))
+                    continue
+            
             if clock_on:
                 tashkent = pytz.timezone('Asia/Tashkent')
                 from datetime import timedelta
@@ -324,19 +335,22 @@ async def clock_loop():
                     if client.is_connected():
                         await client(UpdateProfileRequest(first_name=text))
                         print(f"Nickname: {text}")
+                        flood_wait_until = 0  # Reset flood limit
                     else:
                         print("Telethon ulanmagan, qayta ulanmoqda...")
                         await client.connect()
                 except Exception as e:
                     error_msg = str(e)
-                    if "wait" in error_msg.lower():
-                        # Flood limit - kutish kerak
+                    if "wait" in error_msg.lower() and "seconds" in error_msg.lower():
+                        # Flood limit - kutish vaqtini saqlash
                         import re
                         wait_time = re.search(r'(\d+) seconds', error_msg)
                         if wait_time:
                             wait_seconds = int(wait_time.group(1))
+                            flood_wait_until = time_module.time() + wait_seconds
                             print(f"Flood limit: {wait_seconds} sekund kutish kerak")
-                            await asyncio.sleep(wait_seconds)
+                            await asyncio.sleep(min(wait_seconds, 60))
+                            continue
                     elif "authorization key" in error_msg.lower():
                         print("Session xatosi: Ikki joyda ishlatilmoqda!")
                     else:
