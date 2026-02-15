@@ -269,31 +269,33 @@ def run_flask():
 
 async def main():
     import os
+    import base64
+    
+    # SESSION_BASE64 dan session yaratish
+    session_b64 = os.environ.get("SESSION_BASE64")
+    if session_b64 and not os.path.exists("user_session.session"):
+        try:
+            session_bytes = base64.b64decode(session_b64)
+            with open("user_session.session", "wb") as f:
+                f.write(session_bytes)
+            print("Session base64 dan yaratildi")
+        except Exception as e:
+            print(f"Session decode xatosi: {e}")
     
     # Avval Telethon ulansin
     try:
-        # Agar session fayli bo'lmasa yoki environment variable bo'lsa, yangi session yarat
-        phone = os.environ.get("PHONE_NUMBER")
-        if phone and not os.path.exists("user_session.session"):
-            print(f"Yangi session yaratilmoqda: {phone}")
-            await client.start(phone=phone)
-            print("Yangi session yaratildi!")
-        else:
-            await client.start()
-            print("Telethon ulandi")
+        await client.start()
+        print("Telethon ulandi")
     except Exception as e:
         print(f"Telethon ulanish xatosi: {e}")
-        # Session xatosi bo'lsa, davom etamiz
         if "authorization key" in str(e).lower():
             print("Session bloklangan. Yangi session yaratish kerak.")
-            # Eski session faylini o'chirish
-            import os
             try:
                 os.remove("user_session.session")
                 os.remove("user_session.session-journal")
             except:
                 pass
-            print("Eski session o'chirildi. Qayta ishga tushiring.")
+            print("Eski session o'chirildi. SESSION_BASE64 ni yangilang.")
             return
     
     # Flask thread
