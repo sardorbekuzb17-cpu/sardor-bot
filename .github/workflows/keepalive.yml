@@ -1,0 +1,21 @@
+name: Bot Keepalive
+
+on:
+  schedule:
+    # Har 5 minutda ishga tushadi
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Qo'lda ishga tushirish
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Bot
+        run: |
+          echo "🔔 Botga ping yuborilmoqda..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://sardorsoatbot.alwaysdata.net/ping || echo "000")
+          if [ "$response" = "200" ]; then
+            echo "✅ Bot ishlayapti (Status: $response)"
+          else
+            echo "⚠️ Bot javob bermadi (Status: $response)"
+          fi
