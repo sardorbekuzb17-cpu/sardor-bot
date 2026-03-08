@@ -45,38 +45,18 @@ def is_admin(user_id):
     return user_id == ADMIN_ID
 
 async def keepalive_task():
-    """Telethon connectionni doimiy saqlash va avtomatik reconnect"""
-    reconnect_count = 0
+    """Telethon connectionni doimiy saqlash"""
     while True:
         try:
             if client.is_connected():
                 # Har 2 minutda ping yubor
                 await client.get_me()
-                print(f"Keepalive: Connection active (reconnects: {reconnect_count})")
-                reconnect_count = 0  # Reset counter
+                print("Keepalive: Connection active")
             else:
-                print("Keepalive: Disconnected! Reconnecting...")
-                reconnect_count += 1
-                await client.disconnect()
-                await asyncio.sleep(2)
+                print("Keepalive: Reconnecting...")
                 await client.connect()
-                if await client.is_user_authorized():
-                    print(f"Keepalive: Reconnected successfully (attempt {reconnect_count})")
-                else:
-                    print("Keepalive: Session expired! Bot needs restart.")
-        except ConnectionError as e:
-            print(f"Keepalive connection error: {e}, reconnecting...")
-            reconnect_count += 1
-            try:
-                await client.disconnect()
-                await asyncio.sleep(5)
-                await client.connect()
-            except:
-                pass
         except Exception as e:
             print(f"Keepalive xatolik: {e}")
-            reconnect_count += 1
-        
         await asyncio.sleep(120)  # 2 minut
 
 async def auto_message(bot_app):
@@ -264,24 +244,15 @@ def web_home():
     clock_class = "on" if clock_on else "off"
     online_class = "on" if online_on else "off"
     return f"""<!DOCTYPE html>
-<html lang="uz"><head><title>Sardor Bot Keepalive</title><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>body{{font-family:Arial;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}}
-.container{{text-align:center;background:rgba(255,255,255,0.1);padding:40px;border-radius:20px;backdrop-filter:blur(10px);max-width:600px}}
-h1{{margin:0 0 20px 0}}#status{{font-size:24px;margin:20px 0}}.success{{color:#4ade80}}.on{{color:#4ade80}}.off{{color:#f87171}}
-a{{display:inline-block;margin:10px;padding:15px 30px;background:rgba(255,255,255,0.2);color:#fff;text-decoration:none;border-radius:10px;transition:0.3s}}
-a:hover{{background:rgba(255,255,255,0.3)}}</style>
-<script>
-async function pingBot(){{try{{const r=await fetch('/ping');const d=await r.json();document.getElementById('status').className='success';document.getElementById('status').innerHTML='✅ Bot ishlayapti!';document.getElementById('info').innerHTML=`<p>Vaqt: ${{d.time}}</p><p>Sana: ${{d.date}}</p><p>Soat: ${{d.clock}}</p><p>Online: ${{d.online}}</p>`}}catch(e){{document.getElementById('status').className='error';document.getElementById('status').innerHTML='❌ Bot javob bermadi'}}}}
-pingBot();setInterval(pingBot,300000);
-</script></head>
-<body><div class="container"><h1>🤖 Sardor Bot Keepalive</h1>
-<div id="status" class="success">✅ Bot ishlayapti!</div>
-<div id="info"><p>Vaqt: {now.strftime('%H:%M:%S')}</p><p>Sana: {now.strftime('%d.%m.%Y')}</p>
+<html><head><title>Bot Panel</title><meta charset="utf-8">
+<style>body{{font-family:Arial;background:#1a1a2e;color:#fff;text-align:center;padding:50px}}
+.on{{color:#0f0}}.off{{color:#f00}}a{{display:inline-block;margin:10px;padding:15px 30px;background:#4a4a6a;color:#fff;text-decoration:none;border-radius:5px}}</style>
+<script>setInterval(()=>fetch('/health'),60000)</script></head>
+<body><h1>BOT PANEL</h1><p>Vaqt: {now.strftime('%H:%M:%S')}</p>
 <p>Soat: <span class="{clock_class}">{"ON" if clock_on else "OFF"}</span></p>
-<p>Online: <span class="{online_class}">{"ON" if online_on else "OFF"}</span></p></div>
-<div style="margin-top:30px"><a href="/clock/on">SOAT ON</a><a href="/clock/off">SOAT OFF</a><br>
-<a href="/online/on">ONLINE ON</a><a href="/online/off">ONLINE OFF</a></div></div></body></html>"""
+<p>Online: <span class="{online_class}">{"ON" if online_on else "OFF"}</span></p>
+<a href="/clock/on">SOAT ON</a><a href="/clock/off">SOAT OFF</a><br>
+<a href="/online/on">ONLINE ON</a><a href="/online/off">ONLINE OFF</a></body></html>"""
 
 @app_flask.route("/health")
 def health():
@@ -312,69 +283,10 @@ def online_off_route():
     online_on = False
     return "<script>location.href='/'</script>"
 
-@app_flask.route("/restart")
-def restart_route():
-    """Tashqi keepalive uchun restart endpoint"""
-    import os
-    import sys
-    import threading
-    
-    def do_restart():
-        time.sleep(1)
-        os.execv(sys.executable, ['python3.11'] + sys.argv)
-    
-    threading.Thread(target=do_restart, daemon=True).start()
-    return {"status": "restarting", "message": "Bot qayta ishga tushmoqda..."}
-
-@app_flask.route("/ping")
-def ping_route():
-    """UptimeRobot/cron-job.org uchun keepalive endpoint"""
-    tashkent = pytz.timezone('Asia/Tashkent')
-    now = datetime.now(tashkent)
-    
-    # Bot statusini tekshirish
-    bot_status = "running" if clock_on or online_on else "idle"
-    
-    return {
-        "status": "ok",
-        "bot": "Sardor Clock Bot",
-        "time": now.strftime('%H:%M:%S'),
-        "date": now.strftime('%d.%m.%Y'),
-        "clock": "ON" if clock_on else "OFF",
-        "online": "ON" if online_on else "OFF",
-        "bot_status": bot_status,
-        "uptime": "running"
-    }
-
 def run_flask():
     import os
     port = int(os.environ.get("PORT", WEB_PORT))
-    # Production uchun threaded=True
-    app_flask.run(host="0.0.0.0", port=port, threaded=True, use_reloader=False)
-
-async def auto_restart_task():
-    """Har 12 soatda botni avtomatik qayta ishga tushirish"""
-    while True:
-        await asyncio.sleep(43200)  # 12 soat
-        print("Auto-restart: 12 soat o'tdi, bot qayta ishga tushmoqda...")
-        import os
-        import sys
-        os.execv(sys.executable, ['python3.11'] + sys.argv)
-
-async def self_ping_task():
-    """O'zini o'zi ping qilish - bot uyg'oq turadi"""
-    import aiohttp
-    while True:
-        await asyncio.sleep(300)  # 5 minut
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get('http://localhost:8080/ping', timeout=10) as resp:
-                    if resp.status == 200:
-                        print("Self-ping: OK")
-                    else:
-                        print(f"Self-ping: Status {resp.status}")
-        except Exception as e:
-            print(f"Self-ping xatolik: {e}")
+    app_flask.run(host="0.0.0.0", port=port)
 
 async def main():
     import os
@@ -411,7 +323,7 @@ async def main():
         return
     
     # Flask thread
-    flask_thread = threading.Thread(target=run_flask, daemon=False)  # daemon=False - to'xtamaydi
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
     # Telegram Bot ishga tushirish
@@ -419,21 +331,10 @@ async def main():
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(CallbackQueryHandler(buttons))
     
-    # Background tasks with auto-restart
-    async def safe_task(coro_func, name):
-        """Task wrapper - agar to'xtasa qayta ishga tushiradi"""
-        while True:
-            try:
-                await coro_func()
-            except Exception as e:
-                print(f"{name} to'xtadi: {e}, 5 sekunddan keyin qayta ishga tushadi")
-                await asyncio.sleep(5)
-    
-    asyncio.create_task(safe_task(clock_loop, "clock_loop"))
-    asyncio.create_task(safe_task(keepalive_task, "keepalive_task"))
-    asyncio.create_task(safe_task(lambda: auto_message(bot_app), "auto_message"))
-    asyncio.create_task(safe_task(auto_restart_task, "auto_restart_task"))
-    asyncio.create_task(safe_task(self_ping_task, "self_ping_task"))
+    # Background tasks
+    asyncio.create_task(clock_loop())
+    asyncio.create_task(keepalive_task())
+    asyncio.create_task(auto_message(bot_app))
     
     print("Bot to'liq ishga tushdi")
     
@@ -450,20 +351,7 @@ async def clock_loop():
     last_update_time = ""  # Oxirgi yangilangan vaqt
     error_count = 0  # Xatoliklar soni
     
-    # SARDOR animatsiyasi uchun
-    text_animation = "SARDOR "
-    animation_index = 0
-    
     while True:
-        # Reconnect agar ulanish uzilgan bo'lsa
-        if not client.is_connected():
-            try:
-                await client.connect()
-                print("Reconnected to Telegram")
-            except Exception as e:
-                print(f"Reconnect xatolik: {e}")
-                await asyncio.sleep(5)
-                continue
         try:
             # Flood limit tekshirish
             import time as time_module
@@ -480,24 +368,15 @@ async def clock_loop():
                 now = datetime.now(tashkent) + timedelta(seconds=time_offset)
                 bold_nums = {'0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵', ':': ':'}
                 time_str = now.strftime('%H:%M')
-                time_text = ''.join(bold_nums.get(c, c) for c in time_str)
+                text = ''.join(bold_nums.get(c, c) for c in time_str)
                 
-                # SARDOR animatsiyasi - har daqiqada bir harf (qalin yozuvda)
-                animated_part = text_animation[:animation_index + 1]
-                # SARDOR ni ham qalin yozuvda
-                bold_letters = {
-                    'S': '𝗦', 'A': '𝗔', 'R': '𝗥', 'D': '𝗗', 'O': '𝗢', ' ': ' '
-                }
-                animated_text = ''.join(bold_letters.get(c, c) for c in animated_part)
-                full_text = f"{time_text} {animated_text}"
-                
-                # Faqat vaqt yoki animatsiya o'zgarganda yangilash
-                if full_text != last_update_time:
+                # Faqat vaqt o'zgarganda yangilash
+                if text != last_update_time:
                     try:
                         if client.is_connected():
-                            await client(UpdateProfileRequest(first_name=full_text))
-                            print(f"Nickname yangilandi: {full_text}")
-                            last_update_time = full_text
+                            await client(UpdateProfileRequest(first_name=text))
+                            print(f"Nickname yangilandi: {text}")
+                            last_update_time = text
                             flood_wait_until = 0  # Reset flood limit
                             error_count = 0  # Reset error count
                         else:
@@ -563,20 +442,6 @@ async def clock_loop():
         
         # Har sekundda tekshirish (vaqt o'zgarganda darhol yangilanadi)
         await asyncio.sleep(1)
-        
-        # Har daqiqada animatsiya indeksini oshirish
-        if datetime.now(pytz.timezone('Asia/Tashkent')).second == 0:
-            animation_index = (animation_index + 1) % len(text_animation)
-            await asyncio.sleep(1)  # Bir sekund kutish (takrorlanmaslik uchun)
 
 if __name__ == "__main__":
-    while True:
-        try:
-            asyncio.run(main())
-        except KeyboardInterrupt:
-            print("Bot to'xtatildi")
-            break
-        except Exception as e:
-            print(f"Kritik xatolik, qayta ishga tushirilmoqda: {e}")
-            import time
-            time.sleep(5)
+    asyncio.run(main())

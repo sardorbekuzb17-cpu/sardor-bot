@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sardor Bot Keepalive</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+        }
+
+        #status {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .loading {
+            color: #fbbf24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🤖 Sardor Bot Keepalive</h1>
+        <div id="status" class="loading">⏳ Tekshirilmoqda...</div>
+        <div id="info"></div>
+    </div>
+
+    <script>
+        async function pingBot() {
+            try {
+                const response = await fetch('http://185.31.41.85:8080/ping');
+                const data = await response.json();
+
+                document.getElementById('status').className = 'success';
+                document.getElementById('status').innerHTML = '✅ Bot ishlayapti!';
+                document.getElementById('info').innerHTML = `
+                    <p>Vaqt: ${data.time}</p>
+                    <p>Sana: ${data.date}</p>
+                    <p>Soat: ${data.clock}</p>
+                    <p>Online: ${data.online}</p>
+                `;
+            } catch (error) {
+                document.getElementById('status').className = 'error';
+                document.getElementById('status').innerHTML = '❌ Bot javob bermadi';
+                document.getElementById('info').innerHTML = `<p>Xatolik: ${error.message}</p>`;
+            }
+        }
+
+        // Darhol ping yuborish
+        pingBot();
+
+        // Har 5 minutda ping yuborish
+        setInterval(pingBot, 300000);
+    </script>
+</body>
+
+</html>
