@@ -34,7 +34,7 @@ def setup_ssh_key():
         
         # Permissions o'rnatish
         os.chmod(key_path, 0o600)
-        print(f"✅ SSH key saqlandi: {key_path}")
+        print(f"✅ SSH key saqlandi: {key_path}", flush=True)
         return key_path
     except Exception as e:
         print(f"❌ SSH key setup xatosi: {e}")
@@ -42,7 +42,7 @@ def setup_ssh_key():
 
 def restart_bot():
     """Alwaysdata serverida botni restart qilish"""
-    print(f"\n🔄 Bot restart qilinmoqda: {datetime.now()}")
+    print(f"\n🔄 Bot restart qilinmoqda: {datetime.now()}", flush=True)
     
     key_path = setup_ssh_key()
     if not key_path:
@@ -62,8 +62,8 @@ def restart_bot():
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         
         if result.returncode == 0:
-            print(f"✅ Bot restart qilindi: {datetime.now()}")
-            print(f"Output: {result.stdout[:200]}")
+            print(f"✅ Bot restart qilindi: {datetime.now()}", flush=True)
+            print(f"Output: {result.stdout[:200]}", flush=True)
             return True
         else:
             print(f"⚠️ Restart xatosi (exit code {result.returncode}): {result.stderr[:200]}")
@@ -104,8 +104,8 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=restart_bot, trigger="interval", minutes=1)
 scheduler.start()
 
-print("🚀 Keepalive service ishga tushdi")
-print(f"📅 Har 1 daqiqada bot restart qilinadi")
+print("🚀 Keepalive service ishga tushdi", flush=True)
+print(f"📅 Har 1 daqiqada bot restart qilinadi", flush=True)
 
 # Darhol birinchi restart
 restart_bot()
