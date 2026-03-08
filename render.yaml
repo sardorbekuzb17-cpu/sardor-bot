@@ -1,23 +1,18 @@
 services:
+  # Keepalive service - har 20 daqiqada Alwaysdata botni restart qiladi
   - type: web
-    name: sardor-clock-bot
-    env: python
+    name: sardor-bot-keepalive
+    runtime: python
     region: frankfurt
     plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    buildCommand: pip install -r render_requirements.txt
+    startCommand: gunicorn render_keepalive:app
     envVars:
-      - key: API_ID
-        sync: false
-      - key: API_HASH
-        sync: false
-      - key: BOT_TOKEN
-        sync: false
-      - key: ADMIN_ID
-        sync: false
-      - key: SESSION_BASE64
-        sync: false
-      - key: WEB_PORT
-        value: 10000
-    healthCheckPath: /ping
+      - key: SSH_HOST
+        value: ssh-sardorsoatbot.alwaysdata.net
+      - key: SSH_USER
+        value: sardorsoatbot
+      - key: SSH_KEY
+        sync: false  # Manual: Base64 encoded private key
+    healthCheckPath: /health
