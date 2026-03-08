@@ -5,7 +5,6 @@ Har 20 daqiqada Alwaysdata serveriga SSH orqali ulanib botni restart qiladi
 """
 
 import os
-import time
 import subprocess
 from datetime import datetime
 from flask import Flask, jsonify
@@ -20,7 +19,7 @@ SSH_KEY = os.environ.get("SSH_KEY", "")  # Base64 encoded private key
 def setup_ssh_key():
     """SSH key ni fayl sifatida saqlash"""
     if not SSH_KEY:
-        print("SSH_KEY environment variable yo'q!")
+        print("⚠️ SSH_KEY environment variable yo'q!")
         return None
     
     import base64
@@ -35,16 +34,19 @@ def setup_ssh_key():
         
         # Permissions o'rnatish
         os.chmod(key_path, 0o600)
-        print(f"SSH key saqlandi: {key_path}")
+        print(f"✅ SSH key saqlandi: {key_path}")
         return key_path
     except Exception as e:
-        print(f"SSH key setup xatosi: {e}")
+        print(f"❌ SSH key setup xatosi: {e}")
         return None
 
 def restart_bot():
     """Alwaysdata serverida botni restart qilish"""
+    print(f"\n🔄 Bot restart qilinmoqda: {datetime.now()}")
+    
     key_path = setup_ssh_key()
     if not key_path:
+        print("❌ SSH key yo'q, restart bekor qilindi")
         return False
     
     try:
@@ -61,9 +63,10 @@ def restart_bot():
         
         if result.returncode == 0:
             print(f"✅ Bot restart qilindi: {datetime.now()}")
+            print(f"Output: {result.stdout[:200]}")
             return True
         else:
-            print(f"⚠️ Restart xatosi: {result.stderr}")
+            print(f"⚠️ Restart xatosi (exit code {result.returncode}): {result.stderr[:200]}")
             return False
     except Exception as e:
         print(f"❌ SSH xatosi: {e}")
@@ -94,19 +97,15 @@ def restart():
 def health():
     return jsonify({"status": "ok"})
 
-def keepalive_loop():
-    """Har 20 daqiqada restart qilish"""
-    while True:
-        time.sleep(1200)  # 20 daqiqa
-        restart_bot()
+# APScheduler ni Flask app bilan birga ishga tushirish
+from apscheduler.schedulers.background import BackgroundScheduler
 
-if __name__ == "__main__":
-    import threading
-    
-    # Background thread - har 20 daqiqada restart
-    thread = threading.Thread(target=keepalive_loop, daemon=True)
-    thread.start()
-    
-    # Flask server
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=restart_bot, trigger="interval", minutes=20)
+scheduler.start()
+
+print("🚀 Keepalive service ishga tushdi")
+print(f"📅 Har 20 daqiqada bot restart qilinadi")
+
+# Darhol birinchi restart
+restart_bot()
