@@ -101,11 +101,11 @@ def health():
 from apscheduler.schedulers.background import BackgroundScheduler
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=restart_bot, trigger="interval", minutes=20)
+scheduler.add_job(func=restart_bot, trigger="interval", minutes=1)
 scheduler.start()
 
 print("🚀 Keepalive service ishga tushdi")
-print(f"📅 Har 20 daqiqada bot restart qilinadi")
+print(f"📅 Har 1 daqiqada bot restart qilinadi")
 
 # Darhol birinchi restart
 restart_bot()
